@@ -317,6 +317,16 @@
             <p class="subtitle">Sistema de Gestão de Consultas com Google Sheets</p>
         </header>
 
+        <div class="card" style="background: #d1ecf1; border-left: 5px solid #17a2b8; padding: 15px 20px; margin-bottom: 20px;">
+            <p style="margin: 0; color: #0c5460; font-weight: 600;">
+                💡 <strong>Importante:</strong> Para enviar lembretes pelo WhatsApp, permita pop-ups neste site!
+                <br>
+                <span style="font-size: 0.9em; font-weight: normal;">
+                    No Chrome: clique no ícone 🚫 na barra de endereços e selecione "Sempre permitir pop-ups"
+                </span>
+            </p>
+        </div>
+
         <div class="config-section card" id="configSection">
             <h3>⚙️ Configuração - URL do Google Apps Script</h3>
             <p style="color: #856404; margin-bottom: 15px; font-size: 0.95em;">
@@ -529,7 +539,7 @@
                                 <span class="info-label">Local:</span> ${consulta.bairro}
                             </div>
                             <div class="info-item">
-                                <span class="info-label">Telefone:</span> ${consulta.telefoneTia}
+                                <span class="info-label">Horário:</span> ${formatarHorario(consulta.horario)}
                             </div>
                         </div>
                         
@@ -584,14 +594,32 @@
         }
 
         function formatarHorario(horario) {
-            // Se o horário vier no formato ISO ou com segundos
+            if (!horario) return '';
+            
+            // Se vier como string
             if (typeof horario === 'string') {
-                // Remove tudo depois de segundos se houver
+                // Se for um timestamp ISO completo (ex: 1899-12-30T19:36:00.000Z)
+                if (horario.includes('T')) {
+                    const dataObj = new Date(horario);
+                    const horas = String(dataObj.getUTCHours()).padStart(2, '0');
+                    const minutos = String(dataObj.getUTCMinutes()).padStart(2, '0');
+                    return `${horas}:${minutos}`;
+                }
+                
+                // Se tiver dois pontos, é formato de hora
                 if (horario.includes(':')) {
                     const partes = horario.split(':');
-                    return `${partes[0]}:${partes[1]}`;
+                    return `${partes[0].padStart(2, '0')}:${partes[1].padStart(2, '0')}`;
                 }
             }
+            
+            // Se for um objeto Date
+            if (horario instanceof Date) {
+                const horas = String(horario.getHours()).padStart(2, '0');
+                const minutos = String(horario.getMinutes()).padStart(2, '0');
+                return `${horas}:${minutos}`;
+            }
+            
             return horario;
         }
 
@@ -616,67 +644,122 @@
             }
         }
 
-        async function enviarLembrete(id, tipo) {
+        function enviarLembrete(id, tipo) {
             const consulta = consultas.find(c => c.id === id);
-            if (!consulta) return;
+            
+            if (!consulta) {
+                alert('❌ Erro: Consulta não encontrada!');
+                console.error('Consulta não encontrada. ID:', id);
+                return;
+            }
+
+            console.log('=== ENVIANDO LEMBRETE ===');
+            console.log('Consulta:', consulta);
+            console.log('Tipo:', tipo);
 
             const tipoTexto = tipo === 'umDia' ? 'AMANHÃ' : 'HOJE';
             
+            // Formatar data e hora
+            const dataFormatada = formatarData(consulta.data);
+            const horaFormatada = formatarHorario(consulta.horario);
+            
+            console.log('Data formatada:', dataFormatada);
+            console.log('Hora formatada:', horaFormatada);
+            
             // Mensagem para a tia
-            const mensagemTia = `🏥 *LEMBRETE DE CONSULTA - ${tipoTexto}*
+            const mensagemTia = `🏥 LEMBRETE DE CONSULTA - ${tipoTexto}
 
 📋 Especialidade: ${consulta.especialidade}
 👨‍⚕️ Médico: ${consulta.medico}
-📅 Data: ${formatarData(consulta.data)}
-🕐 Horário: ${formatarHorario(consulta.horario)}
+📅 Data: ${dataFormatada}
+🕐 Horário: ${horaFormatada}
 📍 Local: ${consulta.endereco}, ${consulta.bairro}
 
 ⚠️ Não esqueça de levar documentos e carteirinha!`;
 
             // Mensagem para você
-            const mensagemVoce = `🔔 *LEMBRETE ENVIADO*
+            const mensagemVoce = `🔔 LEMBRETE ENVIADO
 
 Consulta marcada para ${consulta.nomeTia}:
 
 📋 ${consulta.especialidade}
 👨‍⚕️ ${consulta.medico}
-📅 ${formatarData(consulta.data)} às ${formatarHorario(consulta.horario)}
+📅 ${dataFormatada} às ${horaFormatada}
 📍 ${consulta.bairro}
 
 Status: Lembrete de ${tipoTexto} enviado`;
 
-            // Limpar números de telefone (remover tudo exceto dígitos)
-            const telTiaLimpo = consulta.telefoneTia.replace(/\D/g, '');
-            const seuTelLimpo = consulta.seuTelefone.replace(/\D/g, '');
+            // Limpar números de telefone
+            const telTiaLimpo = (consulta.telefoneTia || '').replace(/\D/g, '');
+            const seuTelLimpo = (consulta.seuTelefone || '').replace(/\D/g, '');
+
+            console.log('Telefone Tia original:', consulta.telefoneTia);
+            console.log('Telefone Tia limpo:', telTiaLimpo);
+            console.log('Seu Telefone original:', consulta.seuTelefone);
+            console.log('Seu Telefone limpo:', seuTelLimpo);
+
+            // Validar números
+            if (!telTiaLimpo || telTiaLimpo.length < 10) {
+                alert(`❌ Erro: Número de telefone da tia inválido!\n\nNúmero encontrado: ${consulta.telefoneTia}\nNúmero limpo: ${telTiaLimpo}\n\nVerifique se o número está correto na planilha.`);
+                return;
+            }
+
+            if (!seuTelLimpo || seuTelLimpo.length < 10) {
+                alert(`❌ Erro: Seu número de telefone inválido!\n\nNúmero encontrado: ${consulta.seuTelefone}\nNúmero limpo: ${seuTelLimpo}\n\nVerifique se o número está correto na planilha.`);
+                return;
+            }
 
             // Criar URLs do WhatsApp
-            const urlTia = `https://api.whatsapp.com/send?phone=55${telTiaLimpo}&text=${encodeURIComponent(mensagemTia)}`;
-            const urlVoce = `https://api.whatsapp.com/send?phone=55${seuTelLimpo}&text=${encodeURIComponent(mensagemVoce)}`;
+            const urlTia = `https://wa.me/55${telTiaLimpo}?text=${encodeURIComponent(mensagemTia)}`;
+            const urlVoce = `https://wa.me/55${seuTelLimpo}?text=${encodeURIComponent(mensagemVoce)}`;
 
-            // Abrir WhatsApp para a tia
-            window.open(urlTia, '_blank');
+            console.log('URL WhatsApp Tia:', urlTia);
+            console.log('URL WhatsApp Você:', urlVoce);
 
-            // Aguardar 3 segundos e abrir WhatsApp para você
+            // Tentar abrir primeira janela
+            console.log('Tentando abrir WhatsApp para a tia...');
+            const janela1 = window.open(urlTia, '_blank');
+            
+            if (!janela1 || janela1.closed || typeof janela1.closed === 'undefined') {
+                alert('⚠️ BLOQUEADOR DE POP-UPS ATIVO!\n\n1. Clique no ícone 🚫 na barra de endereços\n2. Selecione "Sempre permitir pop-ups"\n3. Tente novamente\n\nOu copie o link abaixo e cole no navegador:\n' + urlTia);
+                console.error('Pop-up bloqueado!');
+                return;
+            }
+
+            console.log('Primeira janela aberta com sucesso!');
+
+            // Confirmar antes de abrir segunda janela
             setTimeout(() => {
-                window.open(urlVoce, '_blank');
+                console.log('Tentando abrir WhatsApp para você...');
+                const janela2 = window.open(urlVoce, '_blank');
+                
+                if (!janela2 || janela2.closed || typeof janela2.closed === 'undefined') {
+                    alert('⚠️ Segunda janela bloqueada!\n\nCopie o link abaixo:\n' + urlVoce);
+                    console.error('Segunda janela bloqueada!');
+                } else {
+                    console.log('Segunda janela aberta com sucesso!');
+                }
             }, 3000);
 
-            // Atualizar status do lembrete no Google Sheets
+            // Atualizar no Google Sheets
+            atualizarLembrete(id, tipo);
+
+            alert(`✅ WhatsApp abrindo!\n\n📱 1ª aba: Mensagem para ${consulta.nomeTia}\n⏰ Em 3 segundos: 2ª aba com mensagem para você\n\n💡 Clique em "Enviar" em cada aba.`);
+        }
+
+        async function atualizarLembrete(id, tipo) {
             try {
                 await fetch(`${SCRIPT_URL}?action=updateLembrete`, {
                     method: 'POST',
                     body: JSON.stringify({ id, tipo })
                 });
                 
-                // Recarregar consultas após 1 segundo
                 setTimeout(() => {
                     carregarConsultas();
-                }, 1000);
+                }, 2000);
             } catch (error) {
                 console.error('Erro ao atualizar lembrete:', error);
             }
-
-            alert(`✅ Abrindo WhatsApp!\n\n1️⃣ Primeira aba: Mensagem para ${consulta.nomeTia}\n2️⃣ Segunda aba (em 3s): Mensagem para você\n\n💡 Clique em "Enviar" em cada aba do WhatsApp.`);
         }
 
         function verificarLembretesAutomaticos() {
