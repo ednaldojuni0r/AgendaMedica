@@ -43,6 +43,37 @@
             font-size: 1.1em;
         }
 
+        .config-section {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 5px solid #ffc107;
+        }
+
+        .config-section h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .config-section input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ffc107;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .config-section button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: #ffc107;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
         .main-content {
             display: grid;
             grid-template-columns: 1fr 1.5fr;
@@ -110,6 +141,11 @@
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
 
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         .consultas-list h2 {
             color: #667eea;
             margin-bottom: 25px;
@@ -171,6 +207,7 @@
             display: flex;
             gap: 10px;
             margin-top: 15px;
+            flex-wrap: wrap;
         }
 
         .btn-small {
@@ -190,6 +227,15 @@
 
         .btn-lembrete:hover {
             background: #218838;
+        }
+
+        .btn-lembrete-dia {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-lembrete-dia:hover {
+            background: #138496;
         }
 
         .btn-excluir {
@@ -236,6 +282,23 @@
             color: #0c5460;
         }
 
+        .lembrete-info {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .lembrete-enviado {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
         @media (max-width: 968px) {
             .main-content {
                 grid-template-columns: 1fr;
@@ -251,8 +314,17 @@
     <div class="container">
         <header>
             <h1>📅 Agenda Médica</h1>
-            <p class="subtitle">Sistema de Gestão de Consultas com Lembretes Automáticos</p>
+            <p class="subtitle">Sistema de Gestão de Consultas com Google Sheets</p>
         </header>
+
+        <div class="config-section card" id="configSection">
+            <h3>⚙️ Configuração - URL do Google Apps Script</h3>
+            <p style="color: #856404; margin-bottom: 15px; font-size: 0.95em;">
+                Cole aqui a URL do seu Web App do Google Apps Script (Deploy > New deployment > Web app)
+            </p>
+            <input type="text" id="scriptUrl" placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec">
+            <button onclick="salvarConfiguracao()">Salvar Configuração</button>
+        </div>
 
         <div class="main-content">
             <div class="card form-section">
@@ -303,31 +375,84 @@
                         <input type="tel" id="seuTelefone" required placeholder="(21) 98888-8888">
                     </div>
 
-                    <button type="submit" class="btn">Adicionar Consulta</button>
+                    <button type="submit" class="btn" id="btnSubmit">Adicionar Consulta</button>
                 </form>
             </div>
 
             <div class="card consultas-list">
                 <h2>Consultas Agendadas</h2>
-                <div id="listaConsultas"></div>
+                <div id="listaConsultas">
+                    <div class="loading">Carregando consultas...</div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Gerenciamento de consultas
-        let consultas = JSON.parse(localStorage.getItem('consultasMedicas')) || [];
+        let SCRIPT_URL = localStorage.getItem('googleScriptUrl') || '';
+        let consultas = [];
 
-        // Carregar consultas ao iniciar
-        renderConsultas();
-        verificarLembretes();
+        // Verificar configuração ao carregar
+        if (SCRIPT_URL) {
+            document.getElementById('scriptUrl').value = SCRIPT_URL;
+            document.getElementById('configSection').style.display = 'none';
+            carregarConsultas();
+        }
+
+        function salvarConfiguracao() {
+            const url = document.getElementById('scriptUrl').value.trim();
+            if (!url) {
+                alert('Por favor, insira a URL do Google Apps Script!');
+                return;
+            }
+            SCRIPT_URL = url;
+            localStorage.setItem('googleScriptUrl', url);
+            document.getElementById('configSection').style.display = 'none';
+            carregarConsultas();
+            alert('Configuração salva com sucesso! ✅');
+        }
+
+        async function carregarConsultas() {
+            if (!SCRIPT_URL) {
+                document.getElementById('listaConsultas').innerHTML = `
+                    <div class="empty-state">
+                        <h3>⚠️ Configure a URL do Google Apps Script</h3>
+                        <p>Configure a URL acima para começar</p>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=getConsultas`);
+                consultas = await response.json();
+                renderConsultas();
+                verificarLembretesAutomaticos();
+            } catch (error) {
+                console.error('Erro ao carregar consultas:', error);
+                document.getElementById('listaConsultas').innerHTML = `
+                    <div class="empty-state">
+                        <h3>❌ Erro ao carregar consultas</h3>
+                        <p>Verifique a URL do Google Apps Script</p>
+                    </div>
+                `;
+            }
+        }
 
         // Adicionar nova consulta
-        document.getElementById('consultaForm').addEventListener('submit', function(e) {
+        document.getElementById('consultaForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
+            if (!SCRIPT_URL) {
+                alert('Configure a URL do Google Apps Script primeiro!');
+                return;
+            }
+
+            const btnSubmit = document.getElementById('btnSubmit');
+            btnSubmit.disabled = true;
+            btnSubmit.textContent = 'Salvando...';
+            
             const consulta = {
-                id: Date.now(),
                 especialidade: document.getElementById('especialidade').value,
                 medico: document.getElementById('medico').value,
                 data: document.getElementById('data').value,
@@ -336,21 +461,30 @@
                 bairro: document.getElementById('bairro').value,
                 nomeTia: document.getElementById('nomeTia').value,
                 telefoneTia: document.getElementById('telefoneTia').value,
-                seuTelefone: document.getElementById('seuTelefone').value,
-                lembreteEnviado: false
+                seuTelefone: document.getElementById('seuTelefone').value
             };
 
-            consultas.push(consulta);
-            salvarConsultas();
-            renderConsultas();
-            this.reset();
-            
-            alert('Consulta adicionada com sucesso! ✅');
-        });
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=addConsulta`, {
+                    method: 'POST',
+                    body: JSON.stringify(consulta)
+                });
 
-        function salvarConsultas() {
-            localStorage.setItem('consultasMedicas', JSON.stringify(consultas));
-        }
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Consulta adicionada com sucesso! ✅');
+                    this.reset();
+                    carregarConsultas();
+                }
+            } catch (error) {
+                console.error('Erro ao adicionar consulta:', error);
+                alert('Erro ao adicionar consulta. Verifique a configuração.');
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.textContent = 'Adicionar Consulta';
+            }
+        });
 
         function renderConsultas() {
             const lista = document.getElementById('listaConsultas');
@@ -367,23 +501,39 @@
             }
 
             // Ordenar por data
-            consultas.sort((a, b) => new Date(a.data + ' ' + a.horario) - new Date(b.data + ' ' + b.horario));
+            consultas.sort((a, b) => {
+                const dataA = new Date(a.data + ' ' + a.horario);
+                const dataB = new Date(b.data + ' ' + b.horario);
+                return dataA - dataB;
+            });
 
             lista.innerHTML = consultas.map(consulta => {
                 const dataConsulta = new Date(consulta.data + ' ' + consulta.horario);
                 const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
                 const amanha = new Date(hoje);
                 amanha.setDate(amanha.getDate() + 1);
+                
+                const dataConsultaSemHora = new Date(consulta.data);
+                dataConsultaSemHora.setHours(0, 0, 0, 0);
                 
                 let status = 'status-futuro';
                 let statusTexto = 'Futura';
                 
-                if (dataConsulta.toDateString() === hoje.toDateString()) {
+                if (dataConsultaSemHora.getTime() === hoje.getTime()) {
                     status = 'status-hoje';
                     statusTexto = 'HOJE!';
-                } else if (dataConsulta.toDateString() === amanha.toDateString()) {
+                } else if (dataConsultaSemHora.getTime() === amanha.getTime()) {
                     status = 'status-proximo';
                     statusTexto = 'Amanhã';
+                }
+
+                let lembreteInfo = '';
+                if (consulta.lembreteUmDiaEnviado) {
+                    lembreteInfo += '<div class="lembrete-info"><span class="lembrete-enviado">✓ Lembrete 1 dia antes enviado</span></div>';
+                }
+                if (consulta.lembreteDiaEnviado) {
+                    lembreteInfo += '<div class="lembrete-info"><span class="lembrete-enviado">✓ Lembrete do dia enviado</span></div>';
                 }
 
                 return `
@@ -413,10 +563,14 @@
                         </div>
 
                         <span class="status-badge ${status}">${statusTexto}</span>
+                        ${lembreteInfo}
                         
                         <div class="consulta-actions">
-                            <button class="btn-small btn-lembrete" onclick="enviarLembrete(${consulta.id})">
-                                📱 Enviar Lembrete Agora
+                            <button class="btn-small btn-lembrete" onclick="enviarLembrete(${consulta.id}, 'umDia')">
+                                📱 Lembrete 1 Dia Antes
+                            </button>
+                            <button class="btn-small btn-lembrete-dia" onclick="enviarLembrete(${consulta.id}, 'dia')">
+                                📱 Lembrete do Dia
                             </button>
                             <button class="btn-small btn-excluir" onclick="excluirConsulta(${consulta.id})">
                                 🗑️ Excluir
@@ -432,19 +586,33 @@
             return `${dia}/${mes}/${ano}`;
         }
 
-        function excluirConsulta(id) {
-            if (confirm('Tem certeza que deseja excluir esta consulta?')) {
-                consultas = consultas.filter(c => c.id !== id);
-                salvarConsultas();
-                renderConsultas();
+        async function excluirConsulta(id) {
+            if (!confirm('Tem certeza que deseja excluir esta consulta?')) return;
+
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=deleteConsulta`, {
+                    method: 'POST',
+                    body: JSON.stringify({ id })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Consulta excluída com sucesso!');
+                    carregarConsultas();
+                }
+            } catch (error) {
+                console.error('Erro ao excluir consulta:', error);
+                alert('Erro ao excluir consulta.');
             }
         }
 
-        function enviarLembrete(id) {
+        async function enviarLembrete(id, tipo) {
             const consulta = consultas.find(c => c.id === id);
             if (!consulta) return;
 
-            const mensagem = `🏥 *LEMBRETE DE CONSULTA*
+            const tipoTexto = tipo === 'umDia' ? '(AMANHÃ)' : '(HOJE)';
+            const mensagem = `🏥 *LEMBRETE DE CONSULTA ${tipoTexto}*
 
 📋 *Especialidade:* ${consulta.especialidade}
 👨‍⚕️ *Médico:* ${consulta.medico}
@@ -473,29 +641,46 @@ ${mensagem}`;
                 window.open(urlPropria, '_blank');
             }, 2000);
 
-            consulta.lembreteEnviado = true;
-            salvarConsultas();
-            
+            // Atualizar no Google Sheets
+            try {
+                await fetch(`${SCRIPT_URL}?action=updateLembrete`, {
+                    method: 'POST',
+                    body: JSON.stringify({ id, tipo })
+                });
+                carregarConsultas();
+            } catch (error) {
+                console.error('Erro ao atualizar lembrete:', error);
+            }
+
             alert('✅ Abrindo WhatsApp para enviar lembretes!');
         }
 
-        function verificarLembretes() {
+        function verificarLembretesAutomaticos() {
             const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
             const amanha = new Date(hoje);
             amanha.setDate(amanha.getDate() + 1);
-            amanha.setHours(0, 0, 0, 0);
 
             consultas.forEach(consulta => {
                 const dataConsulta = new Date(consulta.data);
                 dataConsulta.setHours(0, 0, 0, 0);
 
-                // Se a consulta é amanhã e o lembrete ainda não foi enviado
-                if (dataConsulta.getTime() === amanha.getTime() && !consulta.lembreteEnviado) {
-                    // Aqui você pode implementar envio automático
-                    // Por enquanto, apenas mostra uma notificação
+                // Lembrete 1 dia antes
+                if (dataConsulta.getTime() === amanha.getTime() && !consulta.lembreteUmDiaEnviado) {
+                    // Mostrar notificação
                     if (Notification.permission === 'granted') {
-                        new Notification('Lembrete de Consulta', {
-                            body: `Consulta de ${consulta.nomeTia} amanhã às ${consulta.horario}`,
+                        new Notification('⚠️ Lembrete de Consulta Amanhã!', {
+                            body: `${consulta.nomeTia} - ${consulta.especialidade} às ${consulta.horario}`,
+                            icon: '📅'
+                        });
+                    }
+                }
+
+                // Lembrete no dia
+                if (dataConsulta.getTime() === hoje.getTime() && !consulta.lembreteDiaEnviado) {
+                    if (Notification.permission === 'granted') {
+                        new Notification('🚨 Consulta HOJE!', {
+                            body: `${consulta.nomeTia} - ${consulta.especialidade} às ${consulta.horario}`,
                             icon: '📅'
                         });
                     }
@@ -508,8 +693,10 @@ ${mensagem}`;
             Notification.requestPermission();
         }
 
-        // Verificar lembretes a cada hora
-        setInterval(verificarLembretes, 3600000);
+        // Verificar lembretes a cada 30 minutos
+        setInterval(() => {
+            carregarConsultas();
+        }, 1800000); // 30 minutos
     </script>
 </body>
 </html>
