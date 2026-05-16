@@ -596,31 +596,18 @@
         function formatarHorario(horario) {
             if (!horario) return '';
             
-            // Se vier como string
+            // Se vier como string no formato HH:MM ou HH:MM:SS
             if (typeof horario === 'string') {
-                // Se for um timestamp ISO completo (ex: 1899-12-30T19:36:00.000Z)
-                if (horario.includes('T')) {
-                    const dataObj = new Date(horario);
-                    const horas = String(dataObj.getUTCHours()).padStart(2, '0');
-                    const minutos = String(dataObj.getUTCMinutes()).padStart(2, '0');
-                    return `${horas}:${minutos}`;
-                }
-                
-                // Se tiver dois pontos, é formato de hora
+                // Pegar apenas os primeiros 5 caracteres (HH:MM)
                 if (horario.includes(':')) {
                     const partes = horario.split(':');
-                    return `${partes[0].padStart(2, '0')}:${partes[1].padStart(2, '0')}`;
+                    const horas = partes[0].padStart(2, '0');
+                    const minutos = partes[1] ? partes[1].padStart(2, '0') : '00';
+                    return `${horas}:${minutos}`;
                 }
             }
             
-            // Se for um objeto Date
-            if (horario instanceof Date) {
-                const horas = String(horario.getHours()).padStart(2, '0');
-                const minutos = String(horario.getMinutes()).padStart(2, '0');
-                return `${horas}:${minutos}`;
-            }
-            
-            return horario;
+            return String(horario);
         }
 
         async function excluirConsulta(id) {
