@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agenda Médica Virtual - Consultas das Tias</title>
+    <title>Agenda Médica - Consultas das Tias</title>
     <style>
         * {
             margin: 0;
@@ -389,40 +389,17 @@
     </div>
 
     <script>
-        let SCRIPT_URL = localStorage.getItem('googleScriptUrl') || '';
+        // URL do Google Apps Script (já configurada)
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkjYG9617LZPaA_cJvJZfE3DZfdOv6jzokr-jPCAyMP5w1h9HjiKluLLlSAqpZ7EPT/exec';
         let consultas = [];
 
-        // Verificar configuração ao carregar
-        if (SCRIPT_URL) {
-            document.getElementById('scriptUrl').value = SCRIPT_URL;
+        // Esconder a seção de configuração e carregar consultas
+        window.addEventListener('DOMContentLoaded', function() {
             document.getElementById('configSection').style.display = 'none';
             carregarConsultas();
-        }
-
-        function salvarConfiguracao() {
-            const url = document.getElementById('scriptUrl').value.trim();
-            if (!url) {
-                alert('Por favor, insira a URL do Google Apps Script!');
-                return;
-            }
-            SCRIPT_URL = url;
-            localStorage.setItem('googleScriptUrl', url);
-            document.getElementById('configSection').style.display = 'none';
-            carregarConsultas();
-            alert('Configuração salva com sucesso! ✅');
-        }
+        });
 
         async function carregarConsultas() {
-            if (!SCRIPT_URL) {
-                document.getElementById('listaConsultas').innerHTML = `
-                    <div class="empty-state">
-                        <h3>⚠️ Configure a URL do Google Apps Script</h3>
-                        <p>Configure a URL acima para começar</p>
-                    </div>
-                `;
-                return;
-            }
-
             try {
                 const response = await fetch(`${SCRIPT_URL}?action=getConsultas`);
                 consultas = await response.json();
@@ -433,7 +410,10 @@
                 document.getElementById('listaConsultas').innerHTML = `
                     <div class="empty-state">
                         <h3>❌ Erro ao carregar consultas</h3>
-                        <p>Verifique a URL do Google Apps Script</p>
+                        <p>Verifique sua conexão com a internet</p>
+                        <button class="btn" onclick="carregarConsultas()" style="max-width: 200px; margin: 20px auto;">
+                            Tentar Novamente
+                        </button>
                     </div>
                 `;
             }
@@ -442,11 +422,6 @@
         // Adicionar nova consulta
         document.getElementById('consultaForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
-            if (!SCRIPT_URL) {
-                alert('Configure a URL do Google Apps Script primeiro!');
-                return;
-            }
 
             const btnSubmit = document.getElementById('btnSubmit');
             btnSubmit.disabled = true;
@@ -479,7 +454,7 @@
                 }
             } catch (error) {
                 console.error('Erro ao adicionar consulta:', error);
-                alert('Erro ao adicionar consulta. Verifique a configuração.');
+                alert('Erro ao adicionar consulta. Verifique sua conexão.');
             } finally {
                 btnSubmit.disabled = false;
                 btnSubmit.textContent = 'Adicionar Consulta';
@@ -502,13 +477,13 @@
 
             // Ordenar por data
             consultas.sort((a, b) => {
-                const dataA = new Date(a.data + ' ' + a.horario);
-                const dataB = new Date(b.data + ' ' + b.horario);
+                const dataA = new Date(a.data);
+                const dataB = new Date(b.data);
                 return dataA - dataB;
             });
 
             lista.innerHTML = consultas.map(consulta => {
-                const dataConsulta = new Date(consulta.data + ' ' + consulta.horario);
+                const dataConsulta = new Date(consulta.data);
                 const hoje = new Date();
                 hoje.setHours(0, 0, 0, 0);
                 const amanha = new Date(hoje);
@@ -540,7 +515,7 @@
                     <div class="consulta-item">
                         <div class="consulta-header">
                             <div class="consulta-title">${consulta.especialidade}</div>
-                            <div class="consulta-data">${formatarData(consulta.data)} às ${consulta.horario}</div>
+                            <div class="consulta-data">${formatarData(consulta.data)} às ${formatarHorario(consulta.horario)}</div>
                         </div>
                         
                         <div class="consulta-info">
@@ -582,8 +557,42 @@
         }
 
         function formatarData(data) {
-            const [ano, mes, dia] = data.split('-');
-            return `${dia}/${mes}/${ano}`;
+            // Se a data vier no formato ISO completo (18T03:00:00.000Z/05/2026)
+            if (typeof data === 'string' && data.includes('T')) {
+                const dataObj = new Date(data);
+                const dia = String(dataObj.getDate()).padStart(2, '0');
+                const mes = String(dataObj.getMonth() + 1).padStart(2, '0');
+                const ano = dataObj.getFullYear();
+                return `${dia}/${mes}/${ano}`;
+            }
+            
+            // Se vier no formato YYYY-MM-DD
+            if (typeof data === 'string' && data.includes('-')) {
+                const [ano, mes, dia] = data.split('-');
+                return `${dia}/${mes}/${ano}`;
+            }
+            
+            // Se for um objeto Date
+            if (data instanceof Date) {
+                const dia = String(data.getDate()).padStart(2, '0');
+                const mes = String(data.getMonth() + 1).padStart(2, '0');
+                const ano = data.getFullYear();
+                return `${dia}/${mes}/${ano}`;
+            }
+            
+            return data; // Retorna como está se não reconhecer o formato
+        }
+
+        function formatarHorario(horario) {
+            // Se o horário vier no formato ISO ou com segundos
+            if (typeof horario === 'string') {
+                // Remove tudo depois de segundos se houver
+                if (horario.includes(':')) {
+                    const partes = horario.split(':');
+                    return `${partes[0]}:${partes[1]}`;
+                }
+            }
+            return horario;
         }
 
         async function excluirConsulta(id) {
@@ -611,48 +620,63 @@
             const consulta = consultas.find(c => c.id === id);
             if (!consulta) return;
 
-            const tipoTexto = tipo === 'umDia' ? '(AMANHÃ)' : '(HOJE)';
-            const mensagem = `🏥 *LEMBRETE DE CONSULTA ${tipoTexto}*
+            const tipoTexto = tipo === 'umDia' ? 'AMANHÃ' : 'HOJE';
+            
+            // Mensagem para a tia
+            const mensagemTia = `🏥 *LEMBRETE DE CONSULTA - ${tipoTexto}*
 
-📋 *Especialidade:* ${consulta.especialidade}
-👨‍⚕️ *Médico:* ${consulta.medico}
-📅 *Data:* ${formatarData(consulta.data)}
-🕐 *Horário:* ${consulta.horario}
-📍 *Local:* ${consulta.endereco}, ${consulta.bairro}
-👤 *Paciente:* ${consulta.nomeTia}
+📋 Especialidade: ${consulta.especialidade}
+👨‍⚕️ Médico: ${consulta.medico}
+📅 Data: ${formatarData(consulta.data)}
+🕐 Horário: ${formatarHorario(consulta.horario)}
+📍 Local: ${consulta.endereco}, ${consulta.bairro}
 
 ⚠️ Não esqueça de levar documentos e carteirinha!`;
 
-            // Limpar números (remover caracteres especiais)
+            // Mensagem para você
+            const mensagemVoce = `🔔 *LEMBRETE ENVIADO*
+
+Consulta marcada para ${consulta.nomeTia}:
+
+📋 ${consulta.especialidade}
+👨‍⚕️ ${consulta.medico}
+📅 ${formatarData(consulta.data)} às ${formatarHorario(consulta.horario)}
+📍 ${consulta.bairro}
+
+Status: Lembrete de ${tipoTexto} enviado`;
+
+            // Limpar números de telefone (remover tudo exceto dígitos)
             const telTiaLimpo = consulta.telefoneTia.replace(/\D/g, '');
             const seuTelLimpo = consulta.seuTelefone.replace(/\D/g, '');
 
+            // Criar URLs do WhatsApp
+            const urlTia = `https://api.whatsapp.com/send?phone=55${telTiaLimpo}&text=${encodeURIComponent(mensagemTia)}`;
+            const urlVoce = `https://api.whatsapp.com/send?phone=55${seuTelLimpo}&text=${encodeURIComponent(mensagemVoce)}`;
+
             // Abrir WhatsApp para a tia
-            const urlTia = `https://wa.me/55${telTiaLimpo}?text=${encodeURIComponent(mensagem)}`;
             window.open(urlTia, '_blank');
 
-            // Aguardar 2 segundos e abrir WhatsApp para você
+            // Aguardar 3 segundos e abrir WhatsApp para você
             setTimeout(() => {
-                const mensagemPropria = `🔔 Lembrete enviado!
+                window.open(urlVoce, '_blank');
+            }, 3000);
 
-Consulta agendada para ${consulta.nomeTia}:
-${mensagem}`;
-                const urlPropria = `https://wa.me/55${seuTelLimpo}?text=${encodeURIComponent(mensagemPropria)}`;
-                window.open(urlPropria, '_blank');
-            }, 2000);
-
-            // Atualizar no Google Sheets
+            // Atualizar status do lembrete no Google Sheets
             try {
                 await fetch(`${SCRIPT_URL}?action=updateLembrete`, {
                     method: 'POST',
                     body: JSON.stringify({ id, tipo })
                 });
-                carregarConsultas();
+                
+                // Recarregar consultas após 1 segundo
+                setTimeout(() => {
+                    carregarConsultas();
+                }, 1000);
             } catch (error) {
                 console.error('Erro ao atualizar lembrete:', error);
             }
 
-            alert('✅ Abrindo WhatsApp para enviar lembretes!');
+            alert(`✅ Abrindo WhatsApp!\n\n1️⃣ Primeira aba: Mensagem para ${consulta.nomeTia}\n2️⃣ Segunda aba (em 3s): Mensagem para você\n\n💡 Clique em "Enviar" em cada aba do WhatsApp.`);
         }
 
         function verificarLembretesAutomaticos() {
