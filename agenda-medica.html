@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda Médica - Consultas das Tias</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .form-section h2 {
+            color: #667eea;
+            margin-bottom: 25px;
+            font-size: 1.8em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .consultas-list h2 {
+            color: #667eea;
+            margin-bottom: 25px;
+            font-size: 1.8em;
+        }
+
+        .consulta-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 5px solid #667eea;
+            transition: transform 0.2s;
+        }
+
+        .consulta-item:hover {
+            transform: translateX(5px);
+        }
+
+        .consulta-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .consulta-title {
+            font-size: 1.3em;
+            color: #333;
+            font-weight: 700;
+        }
+
+        .consulta-data {
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .consulta-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .info-item {
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .consulta-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+
+        .btn-lembrete {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-lembrete:hover {
+            background: #218838;
+        }
+
+        .btn-excluir {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-excluir:hover {
+            background: #c82333;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .status-proximo {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-hoje {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-futuro {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        @media (max-width: 968px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .consulta-info {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📅 Agenda Médica</h1>
+            <p class="subtitle">Sistema de Gestão de Consultas com Lembretes Automáticos</p>
+        </header>
+
+        <div class="main-content">
+            <div class="card form-section">
+                <h2>Nova Consulta</h2>
+                <form id="consultaForm">
+                    <div class="form-group">
+                        <label for="especialidade">Especialidade</label>
+                        <input type="text" id="especialidade" required placeholder="Ex: Cardiologista, Ortopedista...">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="medico">Nome do Médico</label>
+                        <input type="text" id="medico" required placeholder="Dr. João Silva">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="data">Data</label>
+                        <input type="date" id="data" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="horario">Horário</label>
+                        <input type="time" id="horario" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="endereco">Endereço</label>
+                        <textarea id="endereco" required placeholder="Rua, número, complemento..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="bairro">Bairro</label>
+                        <input type="text" id="bairro" required placeholder="Nome do bairro">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nomeTia">Nome da Tia</label>
+                        <input type="text" id="nomeTia" required placeholder="Maria Silva">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="telefoneTia">Telefone da Tia</label>
+                        <input type="tel" id="telefoneTia" required placeholder="(21) 99999-9999">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="seuTelefone">Seu Telefone</label>
+                        <input type="tel" id="seuTelefone" required placeholder="(21) 98888-8888">
+                    </div>
+
+                    <button type="submit" class="btn">Adicionar Consulta</button>
+                </form>
+            </div>
+
+            <div class="card consultas-list">
+                <h2>Consultas Agendadas</h2>
+                <div id="listaConsultas"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Gerenciamento de consultas
+        let consultas = JSON.parse(localStorage.getItem('consultasMedicas')) || [];
+
+        // Carregar consultas ao iniciar
+        renderConsultas();
+        verificarLembretes();
+
+        // Adicionar nova consulta
+        document.getElementById('consultaForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const consulta = {
+                id: Date.now(),
+                especialidade: document.getElementById('especialidade').value,
+                medico: document.getElementById('medico').value,
+                data: document.getElementById('data').value,
+                horario: document.getElementById('horario').value,
+                endereco: document.getElementById('endereco').value,
+                bairro: document.getElementById('bairro').value,
+                nomeTia: document.getElementById('nomeTia').value,
+                telefoneTia: document.getElementById('telefoneTia').value,
+                seuTelefone: document.getElementById('seuTelefone').value,
+                lembreteEnviado: false
+            };
+
+            consultas.push(consulta);
+            salvarConsultas();
+            renderConsultas();
+            this.reset();
+            
+            alert('Consulta adicionada com sucesso! ✅');
+        });
+
+        function salvarConsultas() {
+            localStorage.setItem('consultasMedicas', JSON.stringify(consultas));
+        }
+
+        function renderConsultas() {
+            const lista = document.getElementById('listaConsultas');
+            
+            if (consultas.length === 0) {
+                lista.innerHTML = `
+                    <div class="empty-state">
+                        <div style="font-size: 4em;">📋</div>
+                        <h3>Nenhuma consulta agendada</h3>
+                        <p>Adicione uma consulta usando o formulário ao lado</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Ordenar por data
+            consultas.sort((a, b) => new Date(a.data + ' ' + a.horario) - new Date(b.data + ' ' + b.horario));
+
+            lista.innerHTML = consultas.map(consulta => {
+                const dataConsulta = new Date(consulta.data + ' ' + consulta.horario);
+                const hoje = new Date();
+                const amanha = new Date(hoje);
+                amanha.setDate(amanha.getDate() + 1);
+                
+                let status = 'status-futuro';
+                let statusTexto = 'Futura';
+                
+                if (dataConsulta.toDateString() === hoje.toDateString()) {
+                    status = 'status-hoje';
+                    statusTexto = 'HOJE!';
+                } else if (dataConsulta.toDateString() === amanha.toDateString()) {
+                    status = 'status-proximo';
+                    statusTexto = 'Amanhã';
+                }
+
+                return `
+                    <div class="consulta-item">
+                        <div class="consulta-header">
+                            <div class="consulta-title">${consulta.especialidade}</div>
+                            <div class="consulta-data">${formatarData(consulta.data)} às ${consulta.horario}</div>
+                        </div>
+                        
+                        <div class="consulta-info">
+                            <div class="info-item">
+                                <span class="info-label">Médico:</span> ${consulta.medico}
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Paciente:</span> ${consulta.nomeTia}
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Local:</span> ${consulta.bairro}
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Telefone:</span> ${consulta.telefoneTia}
+                            </div>
+                        </div>
+                        
+                        <div class="info-item" style="margin-top: 10px;">
+                            <span class="info-label">Endereço:</span> ${consulta.endereco}
+                        </div>
+
+                        <span class="status-badge ${status}">${statusTexto}</span>
+                        
+                        <div class="consulta-actions">
+                            <button class="btn-small btn-lembrete" onclick="enviarLembrete(${consulta.id})">
+                                📱 Enviar Lembrete Agora
+                            </button>
+                            <button class="btn-small btn-excluir" onclick="excluirConsulta(${consulta.id})">
+                                🗑️ Excluir
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatarData(data) {
+            const [ano, mes, dia] = data.split('-');
+            return `${dia}/${mes}/${ano}`;
+        }
+
+        function excluirConsulta(id) {
+            if (confirm('Tem certeza que deseja excluir esta consulta?')) {
+                consultas = consultas.filter(c => c.id !== id);
+                salvarConsultas();
+                renderConsultas();
+            }
+        }
+
+        function enviarLembrete(id) {
+            const consulta = consultas.find(c => c.id === id);
+            if (!consulta) return;
+
+            const mensagem = `🏥 *LEMBRETE DE CONSULTA*
+
+📋 *Especialidade:* ${consulta.especialidade}
+👨‍⚕️ *Médico:* ${consulta.medico}
+📅 *Data:* ${formatarData(consulta.data)}
+🕐 *Horário:* ${consulta.horario}
+📍 *Local:* ${consulta.endereco}, ${consulta.bairro}
+👤 *Paciente:* ${consulta.nomeTia}
+
+⚠️ Não esqueça de levar documentos e carteirinha!`;
+
+            // Limpar números (remover caracteres especiais)
+            const telTiaLimpo = consulta.telefoneTia.replace(/\D/g, '');
+            const seuTelLimpo = consulta.seuTelefone.replace(/\D/g, '');
+
+            // Abrir WhatsApp para a tia
+            const urlTia = `https://wa.me/55${telTiaLimpo}?text=${encodeURIComponent(mensagem)}`;
+            window.open(urlTia, '_blank');
+
+            // Aguardar 2 segundos e abrir WhatsApp para você
+            setTimeout(() => {
+                const mensagemPropria = `🔔 Lembrete enviado!
+
+Consulta agendada para ${consulta.nomeTia}:
+${mensagem}`;
+                const urlPropria = `https://wa.me/55${seuTelLimpo}?text=${encodeURIComponent(mensagemPropria)}`;
+                window.open(urlPropria, '_blank');
+            }, 2000);
+
+            consulta.lembreteEnviado = true;
+            salvarConsultas();
+            
+            alert('✅ Abrindo WhatsApp para enviar lembretes!');
+        }
+
+        function verificarLembretes() {
+            const hoje = new Date();
+            const amanha = new Date(hoje);
+            amanha.setDate(amanha.getDate() + 1);
+            amanha.setHours(0, 0, 0, 0);
+
+            consultas.forEach(consulta => {
+                const dataConsulta = new Date(consulta.data);
+                dataConsulta.setHours(0, 0, 0, 0);
+
+                // Se a consulta é amanhã e o lembrete ainda não foi enviado
+                if (dataConsulta.getTime() === amanha.getTime() && !consulta.lembreteEnviado) {
+                    // Aqui você pode implementar envio automático
+                    // Por enquanto, apenas mostra uma notificação
+                    if (Notification.permission === 'granted') {
+                        new Notification('Lembrete de Consulta', {
+                            body: `Consulta de ${consulta.nomeTia} amanhã às ${consulta.horario}`,
+                            icon: '📅'
+                        });
+                    }
+                }
+            });
+        }
+
+        // Solicitar permissão para notificações
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        // Verificar lembretes a cada hora
+        setInterval(verificarLembretes, 3600000);
+    </script>
+</body>
+</html>
